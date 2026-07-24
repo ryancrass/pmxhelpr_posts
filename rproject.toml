@@ -6,7 +6,7 @@ r_version = "4.6"
 # The alias is only used in this file if you want to specifically require a dependency to come from a certain repository.
 # Example: { alias = "PPM", url = "https://packagemanager.posit.co/cran/latest" },
 repositories = [
- {alias = "PPM", url = "https://packagemanager.posit.co/cran/latest"}
+    { alias = "PRISM", url = "https://prism.dev.a2-ai.cloud/rpkgs/stratus/2026-07-16/" },
 ]
 
 # A list of packages to install and any additional configuration
@@ -19,4 +19,5 @@ dependencies = [
     "devtools",
     "remotes",
     "here",
+    "pmxhelpr"
 ]
