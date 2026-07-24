@@ -1,0 +1,87 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(pmxhelpr)
+```
+
+```{r plot-data, eval=T, echo=F, include=F}
+plot_data <- data_sad %>%
+  filter(EVID == 0, CMT %in% c(1,2), FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+`plot_dvtime()` is a convenience wrapper around `ggplot` for  visualizion of a 
+continuous dependent variable (*DV*) over time (*TIME*). The function accepts 
+NONMEM-format datasets directly with internal processing (e.g., BLQ handling, 
+summary statistics, dose-normalization) to ensure consistency in exploratory 
+analyses of PK/PD data.
+
+The function is optimized for datasets containing a nominal time variable
+(*NTIME*), representing protocol-specified times of sample collection. This 
+variable is used to bin data for calculation of summary statistics.
+
+```{r plot-dvtime, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+plot_dvtime(data = plot_data, dv_var = DV, time_var = TIME, ntime_var = NTIME,
+            col_var = Dose, cent = "mean")
+```
+
+{{< pagebreak >}}
+
+A caption prints specifying the central tendency measure calculated and 
+visualized on the plot, which can be silenced with `show_caption = FALSE`.
+
+Arguments specifying dataset columns can be passed to the function as 
+bare names or strings. The returned plot is a `ggplot` object, 
+which can be further modified by adding additional `ggplot` layers.
+
+```{r plot-dvtime-lin, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+plot_dvtime(data = plot_data, col_var = "Dose") +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)")
+```
+
+{{< pagebreak >}}
+
+`plot_dvtime()` uses `ggplot2::stat_summary()` to calculate summary statistics.
+This function performs calculations *after* axis transformation layers, such 
+that`"mean"` returns the geometric mean for log-scale y-axes specified 
+with `ggplot2::scale_y_log()`. 
+
+This nuance is often overlooked by pharmacometricians when describing their own
+figures, since the argument they supplied to the function was `"mean"`.
+
+This silent behavior is made explicit in `plot_dvtime()` via the `log_y` 
+argument, which prints a caption updates to indicate to the user that the 
+summary statistic has changed along with the axis. 
+
+```{r plot-dvtime-log, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+plot_dvtime(data = plot_data, col_var = Dose, log_y = TRUE) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)")
+```

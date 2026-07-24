@@ -1,0 +1,141 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(patchwork)
+library(pmxhelpr)
+```
+
+```{r plot-data, eval=T, echo=F, include=F}
+plot_data <- data_sad %>%
+  filter(EVID == 0, CMT %in% c(1,2), FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+`plot_dvtime()` is a convenience wrapper around `ggplot` for  visualization of a 
+continuous dependent variable (*DV*) over time (*TIME*). The function accepts 
+NONMEM-format datasets directly with internal processing (e.g., BLQ handling, 
+summary statistics, dose-normalization) to ensure consistency in exploratory 
+analyses of PK/PD data.
+
+The function is optimized for datasets containing a nominal time variable
+(*NTIME*), representing protocol-specified times of sample collection. This 
+variable is used to bin data for calculation of summary statistics specified
+by the `cent` argument. Options include:
+
+  + `"none"`: No central tendency layer
+  + `"mean"`: Mean after axis transformation (default).
+  + `"mean_sdl"`: Mean +/- one standard deviation after axis transformation
+  + `"mean_sdl_upper"`: Mean + one standard deviation after axis transformation
+  + `"median"`: Median (50th percentile)
+  + `"median_iqr"`: Median +/- one quartile (inter-quartile range: 
+                      25th to 75h percentiles)
+  + `"median_iqr_upper"`: Median + one quartile
+  
+One may want to visualize only the mean +/- standard devation without the
+added visual noise of the data points. This can be accomplished by removing
+the points using *theme*. 
+
+```{r plot-dvtime-meansd-log, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+plot_dvtime(data = plot_data, col_var = "Dose", cent = "mean_sdl",
+            log_y = TRUE,
+            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)")
+```
+
+{{< pagebreak >}}
+
+On the linear scale, the lower standard deviation error bar may cross the 
+zero threshold, depending on the variability in the underlying data. 
+
+The `"mean_sdl_upper"` option exists to handle this scenario. Because the value 
+of concentration cannot cross zero, we can suppress the lower error bars and 
+visualize only the upper error bar to reduce visuale noise.
+
+Let's take a look at the outputs of `cent = "mean_sdl"` and 
+`cent = "mean_sdl_upper"` side-by-side. We will suppress the captions in favor
+of titles, and gather our identical legends together in the 
+bottom of the plot using `patchwork::plot_layout()` and `ggplot::theme()`. 
+
+```{r plot-dvtime-mean-sd-lin,  message=FALSE, warning=FALSE}
+plot_sdl <- 
+  plot_dvtime(data = plot_data, col_var = "Dose", cent = "mean_sdl", 
+              show_caption = FALSE,
+              theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Mean +/- SD")
+```
+
+```{r plot-dvtime-mean-sdup-lin, message=FALSE, warning=FALSE}
+plot_sdl_upper <- 
+  plot_dvtime(data = plot_data, col_var = "Dose", cent = "mean_sdl_upper",
+              show_caption = FALSE,
+              theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Mean + SD")
+```
+
+```{r plot-dvtime-mean-sdl-patch, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+plot_sdl + plot_sdl_upper + plot_layout(guides = "collect") & theme(legend.position = "bottom")
+```
+
+{{< pagebreak >}}
+
+Perhaps we want to visualize central tendency and individual trends without
+making any distributional assumptions. The non-parametric central tendency
+measure requested with `cent = "median"`. 
+
+We can specify an additional argument `id_var`, which denotes the
+identifier variable in `data`. This argument may  be passed as a bare name
+or a string. When `id_var` is specified, it is passed to the  *group* aesthetic 
+in `ggplot` and used to connect longitudinal repeated measures within an 
+individual (e.g., spaghetti plots). 
+
+```{r plot-dvtime-med-id, message=FALSE, warning=FALSE}
+plot_med_id <- 
+  plot_dvtime(data = plot_data, col_var = "Dose", cent = "median", id_var = ID,
+            log_y = TRUE, show_caption = FALSE,
+            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Median (Individual)")
+```
+
+```{r plot-dvtime-id,  message=FALSE, warning=FALSE}
+plot_id <- 
+  plot_dvtime(data = plot_data, col_var = "Dose", cent = "none", id_var = ID,
+            log_y = TRUE, show_caption = FALSE,
+            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) +
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Individual") + 
+  theme(legend.position = "none")
+```
+
+```{r plot-dvtime-med-id-patch,  message=FALSE, warning=FALSE}
+plot_id + plot_med_id + plot_layout(guides = "collect")
+```

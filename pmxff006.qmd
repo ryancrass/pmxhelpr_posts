@@ -1,0 +1,146 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+options(scipen = 999)
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(patchwork)
+library(mrgsolve)
+library(pmxhelpr)
+```
+
+```{r data-sad-pk, eval=T, echo=F, include=F}
+data_sad_pk <- data_sad %>% 
+  filter(CMT %in% c(1,2)) %>% 
+  filter(FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+```{r model-pk, eval=T, echo=F, include=F}
+model <- model_mread_load("pkmodel")
+```
+
+```{r df_mrgsim_replicate, eval=T, echo=F, include=F}
+simout <- df_mrgsim_replicate(data = data_sad_pk,
+                     model = model,
+                     replicates = 500,
+                     carry_out = c("DOSE", "FOOD", "BLQ", "LLOQ"),
+                     recover  = c("PART", "Dose"))
+```
+
+The VPC plotting toolchain for continuous longitudinal data within `pmxhelpr`
+consists of a summary function, `df_vpcstats()`, and two dual-mode plotting 
+functions, `plot_vpc_cont()` and `plot_vpc_cens()`. The summary `vpc_stats`
+object contains all relevant summary statistics within each bin. Plotting 
+functions can perform one-step summary statistic calculation and plotting, or
+they can use `vpc_stats` objects in a two-step workflow to generate multiple 
+plot types with identical grouping.
+
+The seminal paper introducing the pcVPC method (PMID: 21302010) stated the 
+following  regarding the handing of BLQ data in these diagnostics:
+
+"Observations censored due to limit of detection will therefore need to be 
+handled in the same way as previously suggested for drop-out censoring of 
+observations (22). This approach is based on omitting censored observations 
+(e.g., BQL) in a similar manner for both the observed and simulated datasets 
+before calculating the VPC statistics. In this case, the interpretation of the
+pcVPC/pvcVPC for the continuous observations will be heavily dependent on an 
+accurate prediction of the data censoring. Therefore, diagnostics ensuring 
+accurate prediction of censoring frequency (e.g., percentage of observation 
+below LLOQ) versus the independent variable will be important before assessing 
+the pcVPC/pvcVPC for the continuous observations."
+
+`pmxhelpr` is optimized for BLQ handling in VPCs and pcVPCs, with functionality
+to support the pcVPC workflow described in the paper above: 
+  
+1. Assessment of predictions of the censored data range with `plot_vpc_cens()`
+2. Assessment of predictions of the continuous data range with `plot_vpc_cont()`
+     
+We will reuse the `vpc_stats` summary object to generate plots of both the 
+censored and continuous data ranges saving on computation.
+
+```{r df-vpcstats-dose, warning=FALSE}
+vpcstats_ntime_dose <- df_vpcstats(data = simout, strat_var = Dose)
+vpcstats_ntime <- df_vpcstats(data = simout)
+```
+
+`plot_vpc_cens()` is the companion diagnostic to `plot_vpc_cont()`, which
+evaluates the predictive ability of the model for the censored data range.
+It plots `obs_prop_blq` (the per-bin observed BLQ proportion) overlaid on the 
+non-parametric confidence interval of `sim_prop_blq` across replicates (90% CI
+by default) from the `vpc_stats` summary object. 
+
+Let's use our precomputed `vpc_stats` object to generate BOTH censored and
+continuous range VPCs, confirming adequate predictive ability by dose for both
+data types before generating a pcVPC pooled across doses. 
+
+{{< pagebreak >}}
+
+For this example, we will suppress the replicate count in the continuous range
+plot with `show_rep=FALSE` and retain it on the censored range plot and use 
+`patchwork` to combine the two plots into a single image.
+
+```{r plot-vpc-cens-dose, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_cont <- plot_vpc_cont(vpcstats_ntime_dose, show_rep = FALSE) + 
+  scale_x_continuous(breaks = seq(0, 168, 24), limits = c(0, 168)) + 
+  scale_y_log10(guide = "axis_logticks") + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") 
+
+plot_cens <- plot_vpc_cens(vpcstats_ntime_dose) + 
+  scale_x_continuous(breaks = seq(0, 168, 24),limits = c(0, 168)) + 
+  labs(y = "Proportion BLQ", x = "Time (hours)") 
+```
+
+
+```{r plot-vpc-cont-dose-log, fig.height=6, fig.width=6, message=FALSE, warning=FALSE}
+plot_cont / plot_cens
+```
+
+{{< pagebreak >}}
+
+Now that we have verified that the model is adequately predictive of the 
+censored data range across doses using `plot_vpc_cens()`, we can generate a 
+single pcVPC plot for the continuous data range pooled across doses. 
+
+For good measure, we will repeat our patchwork procedure here to show BOTH the
+censored and continuous data pooled diagnostics together in one plot! 
+
+NOTE: The predictive ability for the censored data range should *ALWAYS* be 
+verified by dose, as the pattern of BLQ data is dependent on dose intensity.
+
+```{r plot-pcvpc-cont-log, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_all_cont <- plot_vpc_cont(vpcstats_ntime, pcvpc = TRUE, show_rep=FALSE) + 
+  scale_y_log10(guide = "axis_logticks") + 
+  scale_x_continuous(breaks = seq(0, 168, 24), limits = c(0, 168)) + 
+  labs(y = "PRED-corr. Conc. (ng/mL)", x = "Time (hours)") 
+
+plot_all_cens <- plot_vpc_cens(vpcstats_ntime) + 
+  scale_x_continuous(breaks = seq(0, 168, 24), limits = c(0, 168)) + 
+  labs(y = "Prop. BLQ", x = "Time (hours)") 
+
+plot_all_cont / plot_all_cens
+```

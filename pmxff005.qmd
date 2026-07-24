@@ -1,0 +1,128 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+options(scipen = 999)
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(patchwork)
+library(mrgsolve)
+library(pmxhelpr)
+```
+
+```{r data-sad-pk, eval=T, echo=F, include=F}
+data_sad_pk <- data_sad %>% 
+  filter(CMT %in% c(1,2)) %>% 
+  filter(FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+```{r model-pk, eval=T, echo=F, include=F}
+model <- model_mread_load("pkmodel")
+```
+
+```{r df_mrgsim_replicate, eval=T, echo=F, include=F}
+simout <- df_mrgsim_replicate(data = data_sad_pk,
+                     model = model,
+                     replicates = 500,
+                     carry_out = c("DOSE", "FOOD", "BLQ", "LLOQ"),
+                     recover  = c("PART", "Dose"))
+```
+
+The VPC plotting toolchain for continuous longitudinal data within `pmxhelpr`
+consists of a summary function, `df_vpcstats()`, and two dual-mode plotting 
+functions, `plot_vpc_cont()` and `plot_vpc_cens()`. The summary `vpc_stats`
+object contains all relevant summary statistics within each bin. Plotting 
+functions can perform one-step summary statistic calculation and plotting, or
+they can use `vpc_stats` objects in a two-step workflow to generate multiple 
+plot types with identical grouping.
+
+`pmxhelpr` contains a function to pre-process and derive summary statistics 
+from the observed and simulated data for VPC plotting: `df_vpcstats()` 
+
+The `df_vpcstats` function handles the first two steps in the VPC plot pipeline:
+  
+  1. Pre-processing the data to validate arguments, filter to observation 
+     records, and handle missing data
+  2. Grouping, prediction-correction, and calculation of summary statistics
+     
+VPC summary statistics are calculated for the input  `data` at the study
+replicate-level, and subsequently summarized across replicates to identify 
+the non-parametric statistical intervals. 
+
+Outputs are grouped by the variables passed to arguments `ntime_var` and 
+`strat_var`. 
+
+Let's generate VPC summary statistics using the dataset `simout` introduced
+in the last post, which consists of `N = 500` replicates of a single ascending 
+oral dose study with administration in the fasted state. 
+
+```{r df-vpcstats-dose, warning=FALSE}
+vpcstats_ntime_dose <- df_vpcstats(
+  data = simout,
+  strat_var = Dose
+)
+```
+  
+A helpful informational message prints to let us know that the `loq` argument 
+was automatically inherited from the input `data$LLOQ`.
+
+{{< pagebreak >}}
+
+`df_vpcstats()` returns an S3 `pmx_stats` container with three slots:
+
+  + `stats`: quantile summary statistics of observed and simulated data
+  + `obs`:  first replicate observation rows for observation scatter overlay
+  + `config`: run configuration (`n_replicates`, `loq`, `strat_var`)
+  
+The S3 summary method provides a nice compact of the `vpc_stats` object 
+dimensions, run configuration, and column groups present in stats. The 
+`ntime_var` is renamed to `BIN_MID` internally within the function.
+
+```{r df-vpcstats-dose-summary, warning=FALSE}
+summary(vpcstats_ntime_dose)
+```
+
+The S3 print method provides the same information with a short head preview of 
+the first 3 rows of `x$stats` while the S3 as.data.frame method returns the 
+`stats` slot as a plain data.frame.
+
+{{< pagebreak >}}
+
+The `vpc_stats` object always outputs summary statistics for concentration, 
+prediction-corrected concentration, and proportion BLQ enabling reuse of the
+stats container to generate multiple plots (e.g., VPC, pcVPC, proportion BLQ
+VPC).
+
+A standard VPC plot stratified by dose is generated from the `vpc_stats` object
+for illustration purposes below.
+
+```{r plot-vpc-cont-dose-log, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_vpc_cont(vpcstats_ntime_dose) + 
+  scale_y_log10(guide = "axis_logticks") + 
+  scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") 
+```

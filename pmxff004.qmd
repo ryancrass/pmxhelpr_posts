@@ -1,0 +1,153 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+options(scipen = 999)
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(patchwork)
+library(mrgsolve)
+library(pmxhelpr)
+```
+
+```{r data-sad-pk, eval=T, echo=F, include=F}
+data_sad_pk <- data_sad %>% 
+  filter(CMT %in% c(1,2)) %>% 
+  filter(FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+```{r model-pk, eval=T, echo=F, include=F}
+model <- model_mread_load("pkmodel")
+```
+
+```{r df_mrgsim_replicate, eval=T, echo=F, include=F}
+simout <- df_mrgsim_replicate(data = data_sad_pk,
+                     model = model,
+                     replicates = 500,
+                     carry_out = c("DOSE", "FOOD", "BLQ", "LLOQ"),
+                     recover  = c("PART", "Dose"))
+```
+
+Many VPC tools use algorithmic binning of continuous continuous longitudinal 
+data without leveraging the fact that most non-clinical and clinical 
+study data include information on exact nominal time of sampling (e.g., study
+visit and timepoint). Algorithms ignoring this structure may not adequately 
+reproduce the sampling schema in the underlying trial, particularly if BLQ data
+are imbalanced and not handled properly.
+
+The VPC plotting toolchain for continuous longitudinal data within `pmxhelpr`
+consists of a summary function, `df_vpcstats()`, and two dual-mode plotting 
+functions, `plot_vpc_cont()` and `plot_vpc_cens()`. The summary `vpc_stats`
+object contains all relevant summary statistics within each bin. Plotting 
+functions can perform one-step summary statistic calculation and plotting, or
+they can use `vpc_stats` objects in a two-step workflow to generate multiple 
+plot types with identical grouping.
+
+The entry point into the plotting pipeline is a `data.frame` of simulated 
+replicates of the model development dataset (default format is the output from
+`df_mrgsim_replicate()`). This example uses a dataset (`simout`) consisting 
+of `N = 500` replicates of a single ascending oral dose study with 
+administration in the fasted state. 
+
+A one-step VPC plot by `Dose` a semi-log scale is visualized below.
+                        
+```{r plot-vpc-cont-dose-log, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_obj_dose <- plot_vpc_cont(data = simout, strat_var = Dose)  
+plot_obj_dose + scale_y_log10(guide = "axis_logticks") + scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") 
+```
+
+{{< pagebreak >}}
+
+Like `plot_dvtime()`, default BLQ handling methods are applied when the 
+variable `LLOQ` is present in `data`, or a single numeric value is specified 
+using the `loq` argument.
+
+A core functionality of the `pmxhelpr` VPC workflow is to standardize handling
+of BLQ data within the functions to avoid the requirement for pre-processing of 
+simulated data. The expectation is that input `data` contains simulated 
+values at all sampling times (`EVID=0`and `MDV=0|1`) with censoring of observed 
+values denoted by `MDV=1`.
+
+The handling of observed and simulated BLQ data in VPCs is as follows:
+
+  + Censored Observations (`OBSDV`): `MDV=1` or `OBSDV<loq`
+    - VPC: Censor values | Rank censored values in quantile stats 
+    - pcVPC: Censor values | Drop censored values in quantile stats
+    
+  + Censored Simulated Values (`SIMDV`): `SIMDV<loq`
+    - VPC: No censoring | Rank raw values in quantile stats 
+    - pcVPC: Censor values | Drop censored values in quantile stats
+    
+A one-step VPC plot by `Dose` on linear scale is visualized below.
+`plot_vpc_cont()` uses `facet_wrap()` internally to build the facet layers, and 
+the default `scales="fixed"` is applied and must be over ridden. This will 
+throw a warning, as additional facet layers should *NOT* be added in general, 
+unless the faceting aesthetics are identical in both layers (e.g., `Dose`). 
+
+```{r plot-vpc-cont-dose-lin, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_obj_dose +  scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") +
+  facet_wrap(vars(Dose), scales = "free_y")
+```
+
+{{< pagebreak >}}
+
+One-step pcVPC plots pooled across doses are visualized below on both 
+linear and semi-log scales. Both observed and simulated values < `loq` are
+censored and dropped in calculation of summary statistics. 
+
+In their seminal paper introducing the pcVPC method (PMID: 21302010), 
+Mats Karlsson's group stated the following  regarding the handing of BLQ data
+in these diagnostics:
+
+"Observations censored due to limit of detection will therefore need to be 
+handled in the same way as previously suggested for drop-out censoring of 
+observations (22). This approach is based on omitting censored observations 
+(e.g., BQL) in a similar manner for both the observed and simulated datasets 
+before calculating the VPC statistics. In this case, the interpretation of the
+pcVPC/pvcVPC for the continuous observations will be heavily dependent on an 
+accurate prediction of the data censoring. Therefore, diagnostics ensuring 
+accurate prediction of censoring frequency (e.g., percentage of observation 
+below LLOQ) versus the independent variable will be important before assessing 
+the pcVPC/pvcVPC for the continuous observations."
+
+More on that later!
+
+```{r plot-vpc-cont-pcvpc, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_obj <- plot_vpc_cont(data = simout, pcvpc = TRUE)
+
+plot_pcvpc_lin <- plot_obj + scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "PRED-corrected Concentration (ng/mL)", x = "Time (hours)") 
+
+plot_pcvpc_log <- plot_pcvpc_lin + scale_y_log10(guide = "axis_logticks") 
+
+plot_pcvpc_lin + plot_pcvpc_log + 
+  plot_annotation(tag_levels = 'A', 
+                  title = "pcVPCs on Linear (A) and Semi-log (B) Scales")
+```
+

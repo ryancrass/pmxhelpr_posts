@@ -1,0 +1,104 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(patchwork)
+library(pmxhelpr)
+```
+
+```{r plot-data, eval=T, echo=F, include=F}
+plot_data <- data_sad %>%
+  filter(EVID == 0, CMT %in% c(1,2), FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+`plot_dvtime()` is a convenience wrapper around `ggplot` for  visualization of a 
+continuous dependent variable (*DV*) over time (*TIME*). The function accepts 
+NONMEM-format datasets directly with internal processing (e.g., BLQ handling, 
+summary statistics, dose-normalization) to ensure consistency in exploratory 
+analyses of PK/PD data.
+
+Imputation of data censored below the assay lower limit of quantification 
+(BLQ) is handled in a standardized manner, without modifying the underlying 
+data for visualization with the arguments `loq` and `loq_method`.
+
+The `loq` argument specifies the numeric value of the LLOQ. This value can also
+be inherited row-wise *if* the variable `LLOQ` is present in `data`.
+
+The `loq_method` argument specifies the imputation method for missing 
+observations (EVID = 0, MDV = 1).
+
+  + `0` or `"none"`: No handling. (default)
+  + `1` or `"postdose"`: 0 when `TIME` <= 0 and 1/2 x `loq` when `TIME` > 0
+  + `2` or `"all"`: 1/2 x `loq` 
+
+Setting `loq_method = 1` is useful for plots on a linear scale, 
+where pre-dose concentrations can be zero. A horizontal reference 
+line is drawn at `y=loq` with a corresponding legend entry and caption.
+                        
+```{r plot-dvtime-blq1, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_dvtime(plot_data, col_var = Dose,
+            loq_method = 1, loq = 1) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") 
+```
+
+{{< pagebreak >}}
+
+Setting `loq_method = 2` is useful for visualizing plots on a log scale, 
+where pre-dose concentrations are best visualized imputed to 1/2 LLOQ. The 
+horizontal reference line and legend entries remain; however, the caption
+updates to define the new imputation.
+
+```{r plot-dvtime-blq2-log, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_dvtime(plot_data, col_var = Dose, log_y = TRUE,
+            loq_method = 2, loq = 1) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") 
+```
+
+{{< pagebreak >}}
+
+Dose-normalization in `plot_dvtime` is also handled in a standardized manner, 
+without modifying the underlying data for visualization. Like BLQ imputation, 
+dose-normalization requires specification of two arguments: `dose_var` and
+`dosenorm`.
+
+The `dose_var` argument specifies the variable containing the numeric value of 
+dose on observation records (default is `DOSE`). This argument supports 
+non-standard evaluation, and may be specified as a bare name or as a string.
+
+The `dosenorm` argument is a logical specifying if dose normalization should be
+applied.
+
+```{r plot-dvtime-dosenorm, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_dvtime(plot_data, col_var = Dose, log_y = TRUE,
+            dosenorm = TRUE) +
+  scale_x_continuous(breaks = seq(0, 168, 24)) + 
+  labs(y = "Dose-normalized Concentration (ng/mL)", x = "Time (hours)") 
+```
