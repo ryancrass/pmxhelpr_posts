@@ -1,0 +1,125 @@
+---
+format:
+    html:
+       title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+       embed-resources: true
+       self-contained-math: true
+    pdf:
+       fontsize: 12pt
+       geometry:
+         - margin=0.75in
+       fig-width: 7
+       fig-height: 4.2
+       include-in-header:
+         text: |
+           \usepackage{fvextra}
+           \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+           \usepackage{xcolor}
+           \definecolor{pmxgreen}{HTML}{008000}
+---
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r pkgs, eval=T, echo=F, include=F}
+options(scipen = 999)
+rm(list=ls())
+library(devtools)
+library(tidyverse)
+library(here)
+library(patchwork)
+library(mrgsolve)
+library(pmxhelpr)
+```
+
+```{r data-sad-pk, eval=T, echo=F, include=F}
+data_sad_pk <- data_sad %>% 
+  filter(CMT %in% c(1,2)) %>% 
+  filter(FOOD == 0) %>%
+  rename(DV = ODV) %>%
+  mutate(Dose = var_addn(DOSE, ID, sep = "mg"))
+```
+
+```{r model-pk, eval=T, echo=F, include=F}
+model <- model_mread_load("pkmodel")
+```
+
+```{r df_mrgsim_replicate, eval=T, echo=F, include=F}
+simout <- df_mrgsim_replicate(data = data_sad_pk,
+                     model = model,
+                     replicates = 500,
+                     carry_out = c("DOSE", "FOOD", "BLQ", "LLOQ"),
+                     recover  = c("PART", "Dose"))
+```
+
+The VPC plotting toolchain for continuous longitudinal data within `pmxhelpr`
+consists of a summary function, `df_vpcstats()`, and two dual-mode plotting 
+functions, `plot_vpc_cont()` and `plot_vpc_cens()`. The summary `vpc_stats`
+object contains all relevant summary statistics within each bin. Plotting 
+functions can perform one-step summary statistic calculation and plotting, or
+they can use `vpc_stats` objects in a two-step workflow to generate multiple 
+plot types with identical grouping.
+
+The elements displayed in the VPC can be controlled using the `shown` argument.
+The helper function `plot_vpc_shown()` is provided to update individual plot 
+elements; the defaults can be viewed by calling this function with no arguments.
+
+```{r df-vpcstats-dose, warning=FALSE}
+paste(names(plot_vpc_shown()), plot_vpc_shown(), sep = ":")
+```
+
+The components of the list correspond to the following vpc plot elements:
+
+-   Observed points: `obs_point`
+-   Observed quantile lines: `obs_pi_line`
+-   Observed median line: `obs_median_line`
+-   Simulated quantile lines: `sim_pi_line`
+-   Simulated quantile CIs: `sim_pi_ci`
+-   Simulated quantile PI area: `sim_pi_area`
+-   Simulated median line: `sim_median_line`
+-   Simulated median CI: `sim_median_ci`
+
+{{< pagebreak >}}
+
+One common alternative VPC to the standard 90% non-parametric CIs of the 5th, 
+50th, and 95th percentiles is to generate a 90% non-parametric prediction 
+interval (PI) spanning the area between the 5th and 95th percentiles - 
+especially with limited data where there may not be enough resolution for 
+separate confidence intervals of each quantile.
+
+```{r plot-vpc-dose-pi90, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+shown_pi90 <- plot_vpc_shown(sim_median_ci = FALSE, sim_pi_ci = FALSE, 
+                             sim_pi_area = TRUE, sim_median_line = TRUE,
+                             obs_pi_line = FALSE)
+plot_dose_pi90 <- plot_vpc_cont(simout, pcvpc = FALSE, strat_var = Dose, shown = shown_pi90) + 
+  scale_x_continuous(breaks = seq(0, 168, 24), limits = c(0, 168)) + 
+  scale_y_log10(guide = "axis_logticks") + 
+  labs(y = "Concentration (ng/mL)", x = "Time (hours)") 
+plot_dose_pi90
+```
+{{< pagebreak >}}
+
+With the updates to what is shown in the VPC, it is not immediately intuitive
+what each element shown represents. `pmxhelpr` includes an additional VPC
+plotting function that generates a legend for the plot, which can be combined
+into the plot using `patchwork`. 
+
+Calling this function with no arguments produces a legend matching the default
+VPC elements `shown`.
+
+```{r plot-vpc-leg, fig.height=1, fig.width=6, message=FALSE, warning=FALSE}
+plot_vpc_legend()
+```
+
+Since we defined our new plot elements by assigning the output of 
+`plot_vpc_shown()` to an object, we can simply recycle it to make the legend 
+matching our updated plot. An complete figure is then output by using 
+`patchwork`to combine the VPC plot with the legend in one figure!
+
+```{r plot-vpc-dose-pi90-leg, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_leg_pi90 <- plot_vpc_legend(shown = shown_pi90, lloq = 1)
+
+plot_dose_pi90 / plot_leg_pi90 + plot_layout(heights = c(2, 1))
+```
+
+
