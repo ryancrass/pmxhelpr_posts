@@ -1,0 +1,20 @@
+project:
+  type: default
+  render:
+    - "pmxff*.qmd"
+
+# Shared output configuration for every post. Per-post front matter should
+# only hold what differs between posts.
+format:
+  html:
+    title: '<span style="color:green;">(pmxhelpr)</span> Function Friday'
+    embed-resources: true
+    self-contained-math: true
+  pdf:
+    fontsize: 12pt
+    geometry:
+      - margin=0.75in
+    fig-width: 7
+    fig-height: 4.2
+    include-in-header:
+      file: preamble.tex
