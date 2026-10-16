@@ -3,7 +3,8 @@
 .RData
 .Ruserdata
 *.pdf
-*.html*_files/
+*.html
+*_files/
 .quarto/
 
 /.quarto/

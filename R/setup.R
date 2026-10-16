@@ -6,6 +6,7 @@ options(scipen = 999)
 library(tidyverse)
 library(patchwork)
 library(mrgsolve)
+library(gt)
 library(pmxhelpr)
 
 # Observation-only PK records, fasted, used by the plot_dvtime() posts.

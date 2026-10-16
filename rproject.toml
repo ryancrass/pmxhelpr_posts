@@ -20,5 +20,6 @@ dependencies = [
     "mrgsolve",
     "here",
     "rmarkdown",
-    "pmxhelpr"
+    "pmxhelpr",
+    "gt"
 ]
