@@ -8,121 +8,98 @@ source(here::here("R", "setup.R"))
 
 The dose-proportionality assessment toolchain  within `pmxhelpr`
 consists of a summary function, `df_doseprop()`, and a dual-mode plotting 
-function, `plot_doseprop()`, mirroring the architecture of the VPC toolchain.
-The summary `doseprop_stats`object contains the tabulated power law regression
-statistics. The plotting function can perform one-step summary statistic 
-calculation and plotting, or use a precomputed `vpc_stats` object in a two-step
-workflow.
+function, `plot_doseprop()`, mirroring the VPC approach.
 
 Dose proportionality assessment evaluates whether exposure increases 
 proportionally with dose. The standard approach to this assessment is power law 
-regression on the relationship
+regression based on the relationship:
 
 $$Exposure = \alpha \cdot DOSE^\gamma$$
 
-which linearizes via log transformation to
+which is estimated via linear regression after log transformation as:
 
-$$\log(Exposure) = intercept + \gamma \cdot \log(DOSE)$$
+$$\ln(Exposure) = ln(\alpha) + \gamma \cdot \ln(DOSE)$$
 
-Hypothesis testing proceeds via the confidence interval around the power 
-estimate ($\gamma$): the null is dose-proportional ($\gamma = 1$); the 
-alternative is non-proportional ($\gamma \ne 1$). Interpretation rules of thumb:
-
-  + CI includes 1: dose-proportional
-  + CI excludes 1, upper bound below 1: less than dose-proportional
-  + CI excludes 1, lower bound above 1: greater than dose-proportional
-
-This assessment is typically performed single dose Cmax and AUC using data from
-the first-in-human (FIH) study. The combination assessment of these metrics 
-informs which phase of the PK profile is contributing most to non-linearity 
+This assessment is typically performed using single dose Cmax and AUC to 
+assess which phase of the PK profile is contributing most to non-linearity
 (e.g., absorption rate [Ka], absorption extent [F], or elimination [CL]). 
 
-# Example Analysis Dataset: `data_sad_nca`
+Interpretation is generally based on comparison of the confidence interval 
+of the power estimate ($\gamma$) to the value indicating dose-proportionality
+($\gamma = 1$). the:
 
-The `data_sad_nca` dataset internal to `pmxhelpr` contains NCA parameters
-for the `data_sad` SAD and FE first-in-human (FIH) study. The dataset is 
-formatted following SDTM `PP` (Pharmacokinetic Parameters) domain conventions. 
+  + CI includes 1: dose-proportional
+  + CI excludes 1, contained below 1: less than dose-proportional
+  + CI excludes 1, contained above 1: greater than dose-proportional
 
-We will filter to common dose administration conditions in the fasted state in 
-Part 1 of the study, to avoid confounding the assessment of dose-proportionality
-with the effect of food.
+The `data_sad_nca` dataset internal to `pmxhelpr` will be used in this example,
+which contains NCA parameters for a virtual SAD and FE study. This example will
+filter to the SAD part to exclude the potential impact of food.
 
 ```{r data-prep}
 data_nca1 <- filter(data_sad_nca, PART == "Part 1-SAD")
 ```
 
-{{< pagebreak >}}
-
 # Dose-proportionality Assessment Tabulation: `df_doseprop()`
 
 The `df_doseprop()` function performs the log-log regression of exposure 
-metrics vs dose and returns an object with the summary statistics. 
+metrics vs dose and returns a summary object. 
 
 There are two required arguments:
 
   + `data` — a `data.frame` of NCA parameters
-  + `metrics` — character vector of exposure metric names in `data` to evaluate
+  + `metrics` — a character vector of exposure metric names in `data`
+
+{{< pagebreak >}}
   
-Additional optional arguments must be specified if different from SDTM.PP
-formatting specifications:
+And three optional arguments involed which must be specified if different 
+from the default values:
 
   + `metric_name_var`: variable in `data` containing metric names requested in
       `metrics`, default `PPTESTCD`.
   + `metric_value_var`: variable in `data` containing exposure metric values, 
-      default `PPORRES`.
-    
-The default argument for the numeric dose variable `dose_var` is `DOSE`.
-  
+      default `PPORRES`
+  + `dose_var`: variable in `data` containg the numeric dose amount, 
+      default `DOSE`.
+      
 ```{r df-doseprop-obj}
 dose_prop_obj <- df_doseprop(data_nca1, metrics = c("aucinf.obs", "cmax"))
 dose_prop_obj
 ```
-The returned `doseprop_stats` S3 class object provides a nice print summary of
-the dimensions of the stats data.frame, configuration details, a succinct 
-summary of the `stats` data.frame, and a note that the input dataset is retained
-for plotting. 
 
-The `stats` slot holds the per-metric estimates from the log-log regression, 
-which contains all the information needed to format an output table.
+The returned `doseprop_stats` S3 class object provides a print summary of
+the `stats` data.frame with dimension and configuration information. 
 
+```{r table-defaults}
+dose_prop_obj$stats %>% select(-Intercept, -StandardError) %>% gt() %>%
+  tab_header(title = "Dose-proportionality Assessment (Part 1-SAD)") %>%
+  tab_options(latex.use_longtable = TRUE,table.font.size = px(10),
+          heading.title.font.size = px(14), heading.subtitle.font.size = px(14))
+```
+  
 {{< pagebreak >}}
 
-Additional arguments to `df_doseprop()` control options within the log-log
-regression.
+# Plotting with `plot_doseprop()`
 
-  + `method`: distribution used to calculate the confidence interval. Default is
-    `"normal"`. Alternative `"tdist"` may be preferred for small samples size 
-    where normality cannot be assumed (e.g, < 30).
+`plot_doseprop()` is the dual mode plotting function, which can plot a 
+pre-computed `doseprop_stats` output from `df_doseprop` or perform one-shot 
+log-log regression statistic computation and plotting. 
+
+The output is a `ggplot`object with one panel per metric, where the facet label 
+includes the metric name and the `PowerCI` text. The plot axis limits are 
+rounded to the nearest half log units by default.
+
+```{r plot-pcvpc-cont-log, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
+plot_doseprop(dose_prop_obj)
+```
+
+The required arguments in the one-step pathway are the same as `df_doseprop()`. 
+Additional arguments to `df_doseprop()`, which can were not detailed previously, 
+control options within the log-log regression.
+
+  + `method`: distribution used to calculate the confidence interval. Default 
+  is `"normal"`. Alternative `"tdist"` may be preferred for small samples size 
+    where normality cannot be assumed.
   + `ci`: confidence interval to return expressed as a proportion. Default is 
-    `"0.9"` based on the CI recommended for the bioequivalence assessment.
+    `"0.9"` based on the 90% CI used in bioequivalence assessment.
   + `sigdigits`: number of significant digits to return in outputs
-  
-This example modifies the method from the normal distribution assumptions to 
-the t-distribution and requests the 95% CI with 2 significant digits.
-  
-```{r df-doseprop-obj-95ci-tdist}
-dose_prop_obj_tdist <- df_doseprop(data_nca1,metrics = c("aucinf.obs", "cmax"), 
-                                        method = "tdist", 
-                                        ci = 0.95, sigdigits = 2)
-```
-
-Let's render the stats elements using `gt()` to compare estimates.
-
-```{r table-norm-dist}
-dose_prop_obj$stats %>% select(-Intercept, -StandardError) %>% gt() %>%
-  tab_header(title = "Dose-proportionality Assessment (Part 1-SAD)", 
-             subtitle = "Normal Distribution | 90% CI") %>%
-  tab_options(latex.use_longtable = TRUE,table.font.size = px(10),
-              heading.title.font.size = px(14), 
-              heading.subtitle.font.size = px(14))
-```
-
-```{r table-tdist}
-dose_prop_obj_tdist$stats %>% select(-Intercept, -StandardError) %>% gt() %>%
-  tab_header(title = "Dose-proportionality Assessment (Part 1-SAD)", 
-             subtitle = "t-Distribution | 95% CI") %>%
-  tab_options(latex.use_longtable = TRUE,table.font.size = px(10),
-              heading.title.font.size = px(14), 
-              heading.subtitle.font.size = px(14))
-```
-
