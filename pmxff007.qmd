@@ -83,7 +83,7 @@ matching our updated plot. An complete figure is then output by using
 `patchwork`to combine the VPC plot with the legend in one figure!
 
 ```{r plot-vpc-dose-pi90-leg, fig.height=4, fig.width=6, message=FALSE, warning=FALSE}
-plot_leg_pi90 <- plot_vpc_legend(shown = shown_pi90, lloq = 1)
+plot_leg_pi90 <- plot_vpc_legend(shown = shown_pi90, loq = 1)
 
 plot_dose_pi90 / plot_leg_pi90 + plot_layout(heights = c(2, 1))
 ```

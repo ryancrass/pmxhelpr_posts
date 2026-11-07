@@ -27,13 +27,13 @@ by the `cent` argument. Options include:
   + `"median_iqr_upper"`: Median + one quartile
   
 One may want to visualize only the mean +/- standard devation without the
-added visual noise of the data points. This can be accomplished by removing
-the points using *theme*. 
+added visual noise of the data points. This can be accomplished by hiding
+the points with `show_obs = FALSE`.
 
 ```{r plot-dvtime-meansd-log, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
 plot_dvtime(data = plot_data, col_var = "Dose", cent = "mean_sdl",
             log_y = TRUE,
-            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+            show_obs = FALSE) +
   scale_x_continuous(breaks = seq(0, 168, 24)) +
   labs(y = "Concentration (ng/mL)", x = "Time (hours)")
 ```
@@ -56,7 +56,7 @@ bottom of the plot using `patchwork::plot_layout()` and `ggplot::theme()`.
 plot_sdl <- 
   plot_dvtime(data = plot_data, col_var = "Dose", cent = "mean_sdl", 
               show_caption = FALSE,
-              theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+              show_obs = FALSE) +
   scale_x_continuous(breaks = seq(0, 168, 24)) +
   labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Mean +/- SD")
 ```
@@ -65,7 +65,7 @@ plot_sdl <-
 plot_sdl_upper <- 
   plot_dvtime(data = plot_data, col_var = "Dose", cent = "mean_sdl_upper",
               show_caption = FALSE,
-              theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+              show_obs = FALSE) +
   scale_x_continuous(breaks = seq(0, 168, 24)) +
   labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Mean + SD")
 ```
@@ -90,7 +90,7 @@ individual (e.g., spaghetti plots).
 plot_med_id <- 
   plot_dvtime(data = plot_data, col_var = "Dose", cent = "median", id_var = ID,
             log_y = TRUE, show_caption = FALSE,
-            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+            show_obs = FALSE) +
   scale_x_continuous(breaks = seq(0, 168, 24)) +
   labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Median (Individual)")
 ```
@@ -99,7 +99,7 @@ plot_med_id <-
 plot_id <- 
   plot_dvtime(data = plot_data, col_var = "Dose", cent = "none", id_var = ID,
             log_y = TRUE, show_caption = FALSE,
-            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0))) +
+            show_obs = FALSE) +
   scale_x_continuous(breaks = seq(0, 168, 24)) +
   labs(y = "Concentration (ng/mL)", x = "Time (hours)", title = "Individual") + 
   theme(legend.position = "none")

@@ -825,13 +825,13 @@ dependencies = []
 
 [[packages]]
 name = "pmxhelpr"
-version = "0.6.0"
-source = { repository = "https://prism.dev.a2-ai.cloud/rpkgs/stratus/2026-10-14" }
+version = "0.7.0"
+source = { repository = "https://prism.dev.a2-ai.cloud/rpkgs/pmxhelpr/latest" }
 force_source = false
 dependencies = [
     "dplyr",
     "ggplot2",
-    { name = "ggstylekit", requirement = "(>= 0.4.0)" },
+    { name = "ggstylekit", requirement = "(>= 0.4.1)" },
     "mrgsolve",
     "rlang",
     "withr",
