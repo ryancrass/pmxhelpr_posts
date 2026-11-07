@@ -1,0 +1,105 @@
+::: {.content-visible when-format="pdf"}
+# `\textcolor{pmxgreen}{(pmxhelpr)}`{=latex} Function Friday
+:::
+
+```{r setup, include=FALSE}
+source(here::here("R", "setup.R"))
+```
+
+# `pmxhelpr` v0.7.0 is live!
+
+A new version of `pmxhelpr` is now available with two new feature sets and
+some bug fixes. The the two new feature sets introduced are described below:
+
+## 0.6.0 - Plot styling with `ggstlyekit`
+
+Plot styling is now powered by the `ggstylekit` package, replacing the
+`pmx_*` element/theme system introduced in `0.5.0`.
+
+* Plot aesthetics are controlled with `ggstylekit::style_spec()` using the
+ `style` argument (replaces `theme`). 
+* `reveal()`, `combine_styled_plots()`, and `legend_spec()`are re-exported
+
+**Versions `0.5.x`**
+
+```{r theme}
+#| eval: false
+plot_dvtime(data_sad_pk, dosenorm = TRUE, 
+            theme = plot_dvtime_theme(obs_point = pmx_point(alpha = 0)))
+```
+
+**Version `0.6.0` and higher**
+
+```{r style}
+#| warning: false
+plot_alpha <- plot_dvtime(data_sad_pk, dosenorm = TRUE,
+                          style = style_dvtime(alphas = c(obs_point = 0)))
+```
+
+***Note***: as of `0.7.0` the entire observed data point layer can be removed 
+instead of hidden with `show_obs = FALSE`
+
+```{r show_obs}
+#| warning: false
+plot_show <- plot_dvtime(data_sad_pk, dosenorm = T, show_obs = FALSE) 
+```
+
+```{r, plot-layout}
+#| warning: false
+#| fig-width: 8
+#| fig-height: 2
+plot_alpha + plot_show
+```
+
+The different x-axis labels and limits result from the differential handling of
+the observed data point layer, hidden with alpha on the left and removed on 
+the right.
+
+{{< pagebreak >}}
+
+# 0.7.0 - Forest plot workflow
+
+A forest plot workflow was introduced in version `0.7.0` for  test-to-reference 
+comparisons of exposure or response. The design mirrors the dose-proprtionality
+and VPC toolchains, with summary and dual model plotting functions. 
+
+  + `plot_forest()`: dual mode plotting function for forest plots for 
+  test-to-reference comparisons, such as covariate impact assessment. 
+  + `df_forest()`: summary function to derive forest plot statistics from a
+  pre-processed simulation replicates, returns a `forest_stats` object
+  + `df_forest_preprocess()`: pre-processing function for simulation outputs
+
+```{r forest-plot}
+plot_forest(data_sad_pkforest, metric = "AUCRATIO", 
+            ref_band = c(0.8, 1.25))+ 
+  scale_x_log10(limits = c(0.75, 3), breaks = c(0.5, 0.8, 1, 1.25, 1.5, 2, 3))
+```
+
+{{< pagebreak >}}
+
+It is recommended that all users upgrade to `pmxhelpr` 0.7.0 and `ggstylekit` 
+0.4.1 from their PRISM repositories (`rv` recommended).
+
+## Installation
+
+The recommended way to install pmxhelpr is with [rv](https://github.com/A2-ai/rv).
+Add the two PRISM repositories and pmxhelpr to your project's `rproject.toml`,
+then run `rv sync` in the terminal:
+
+``` toml
+repositories = [
+    { alias = "CRAN", 
+      url = "https://packagemanager.posit.co/cran/latest" },
+    { alias = "pmxhelpr", 
+      url = "https://prism.dev.a2-ai.cloud/rpkgs/pmxhelpr/0.7.0/" },
+    { alias = "ggstylekit", 
+      url = "https://prism.dev.a2-ai.cloud/rpkgs/ggstylekit/0.4.1/" }
+]
+
+dependencies = [
+    "pmxhelpr"
+]
+```
+
+For more information, see the package website: 
+https://ryancrass.github.io/pmxhelpr/
