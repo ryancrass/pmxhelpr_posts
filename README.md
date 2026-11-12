@@ -14,7 +14,7 @@ upload to LinkedIn.
 | [006](pmxff006.qmd) | `plot_vpc_*()`/`df_vpcstats()` Post 3
 | [007](pmxff007.qmd) | `plot_vpc_*()`/`df_vpcstats()` Post 4
 | [008](pmxff008.qmd) | `plot_doseprop()`/`df_doseprop()` Post 1
-| [009](pmxff009.qmd) | Release announcement `v0.7.0`
+| [009](pmxff009.qmd) | Release announcement `v0.8.0`
 
 ## Layout
 

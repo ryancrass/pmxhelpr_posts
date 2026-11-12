@@ -825,17 +825,18 @@ dependencies = []
 
 [[packages]]
 name = "pmxhelpr"
-version = "0.7.0"
+version = "0.8.0"
 source = { repository = "https://prism.dev.a2-ai.cloud/rpkgs/pmxhelpr/latest" }
 force_source = false
 dependencies = [
-    "dplyr",
-    "ggplot2",
+    { name = "cli", requirement = "(>= 3.6.0)" },
+    { name = "dplyr", requirement = "(>= 1.1.0)" },
+    { name = "ggplot2", requirement = "(>= 3.5.0)" },
     { name = "ggstylekit", requirement = "(>= 0.4.1)" },
+    { name = "lifecycle", requirement = "(>= 1.0.0)" },
     "mrgsolve",
     "rlang",
     "withr",
-    "labeling",
 ]
 
 [[packages]]

@@ -6,19 +6,20 @@
 source(here::here("R", "setup.R"))
 ```
 
-# `pmxhelpr` v0.7.0 is live!
+# `pmxhelpr` v0.8.0 is live!
 
-A new version of `pmxhelpr` is now available with two new feature sets and
-some bug fixes. The the two new feature sets introduced are described below:
+A new version of `pmxhelpr` is now available! This post covers what has changed
+since `0.5.x`: two new feature sets in `0.6.0` and `0.7.0`, and intenral updates
+and consistent argument names in `0.8.0`.
 
-## 0.6.0 - Plot styling with `ggstlyekit`
+## 0.6.0 - Plot styling with `ggstylekit`
 
 Plot styling is now powered by the `ggstylekit` package, replacing the
 `pmx_*` element/theme system introduced in `0.5.0`.
 
 * Plot aesthetics are controlled with `ggstylekit::style_spec()` using the
  `style` argument (replaces `theme`). 
-* `reveal()`, `combine_styled_plots()`, and `legend_spec()`are re-exported
+* `reveal()`, `combine_styled_plots()`, and `legend_spec()` are re-exported
 
 **Versions `0.5.x`**
 
@@ -60,8 +61,8 @@ the right.
 # 0.7.0 - Forest plot workflow
 
 A forest plot workflow was introduced in version `0.7.0` for  test-to-reference 
-comparisons of exposure or response. The design mirrors the dose-proprtionality
-and VPC toolchains, with summary and dual model plotting functions. 
+comparisons of exposure or response. The design mirrors the dose-proportionality
+and VPC toolchains, with summary and dual mode plotting functions. 
 
   + `plot_forest()`: dual mode plotting function for forest plots for 
   test-to-reference comparisons, such as covariate impact assessment. 
@@ -77,21 +78,54 @@ plot_forest(data_sad_pkforest, metric = "AUCRATIO",
 
 {{< pagebreak >}}
 
-It is recommended that all users upgrade to `pmxhelpr` 0.7.0 and `ggstylekit` 
-0.4.1 from their PRISM repositories (`rv` recommended).
+# 0.8.0 - Consistent argument names
+
+Replicate and model-output arguments are renamed to match the other `*_var`
+column arguments. The old names still work with a deprecation warning.
+
+**Versions `0.7.x`**
+
+```{r deprecated}
+#| eval: false
+df_mrgsim_replicate(data, model, replicates = 100, irep_name = "SIM",
+                    ipred_var = "IPRED", sim_dv_var = "DV")
+```
+
+**Version `0.8.0` and higher**
+
+```{r renamed}
+#| eval: false
+df_mrgsim_replicate(data, model, replicates = 100, rep_var = "SIM",
+                    ipred_output = "IPRED", dv_output = "DV")
+```
+
+  + `irep_name` → `rep_var` in `df_mrgsim_replicate()`, `df_vpcstats()`,
+  `plot_vpc_cont()`, `plot_vpc_cens()`, and `df_forest_preprocess()`
+  + `output_var` → `ipred_output` in `df_mrgsim_addpred()`
+  + Arguments after `ntime_var` in `df_mrgsim_replicate()` moved, so pass
+  them by name
+
+Also in `0.8.0`:
+
+  + `reveal()` now works on VPC plots
+  + `validate_pmx_stats()` checks a stats container against its full contract
+  + `plot_vpc_legend(stats = )` takes `ci`, `pi`, and `loq` from a
+  `df_vpcstats()` result
 
 ## Installation
 
+It is recommended that all users upgrade to `pmxhelpr` 0.8.0 and `ggstylekit` 
+0.4.1 from their PRISM repositories (`rv` recommended).
+
 The recommended way to install pmxhelpr is with [rv](https://github.com/A2-ai/rv).
-Add the two PRISM repositories and pmxhelpr to your project's `rproject.toml`,
-then run `rv sync` in the terminal:
+Add the following to your project's `rproject.toml`, then run `rv sync`:
 
 ``` toml
 repositories = [
     { alias = "CRAN", 
       url = "https://packagemanager.posit.co/cran/latest" },
     { alias = "pmxhelpr", 
-      url = "https://prism.dev.a2-ai.cloud/rpkgs/pmxhelpr/0.7.0/" },
+      url = "https://prism.dev.a2-ai.cloud/rpkgs/pmxhelpr/0.8.0/" },
     { alias = "ggstylekit", 
       url = "https://prism.dev.a2-ai.cloud/rpkgs/ggstylekit/0.4.1/" }
 ]
